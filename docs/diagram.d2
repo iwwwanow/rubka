@@ -1,0 +1,29 @@
+infrastructure: {
+  cli: {
+    move-window
+  }
+  adapters: {
+    sway
+  }
+}
+
+application: {
+  use-cases: {
+    "move-window-left"
+    move-window-right
+  }
+  ports: {
+    window-manager
+  }
+}
+
+infrastructure.cli.move-window."left" -> application.use-cases."move-window-left"
+infrastructure.cli.move-window."right" -> application.use-cases."move-window-right"
+
+application.use-cases."move-window-left" -> application.ports.window-manager
+application.use-cases."move-window-right" -> application.ports.window-manager
+
+application.use-cases."move-window-left" -> infrastructure.adapters.sway
+application.use-cases."move-window-right" -> infrastructure.adapters.sway
+
+infrastructure.adapters.sway -> application.ports.window-manager
