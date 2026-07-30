@@ -12,19 +12,17 @@ infrastructure: {
 
 application: {
   use-cases: {
-    "move-window (direction)"
+    "move-window": "move-window(direction)"
+    # direction: left | right
   }
   ports: {
     window-manager
   }
 }
 
-infrastructure.cli.move-window."left" -> application.use-cases."move-window (direction)"
-infrastructure.cli.move-window."right" -> application.use-cases."move-window (direction)"
+infrastructure.cli.move-window."left" -> application.use-cases.move-window
+infrastructure.cli.move-window."right" -> application.use-cases.move-window
 
-application.use-cases."move-window (direction)" -> application.ports.window-manager
-
-infrastructure.cli.move-window."left" -> infrastructure.adapters.sway
-infrastructure.cli.move-window."right" -> infrastructure.adapters.sway
+application.use-cases.move-window -> application.ports.window-manager
 
 infrastructure.adapters.sway -> application.ports.window-manager
