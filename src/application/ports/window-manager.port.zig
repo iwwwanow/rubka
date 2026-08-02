@@ -1,11 +1,11 @@
 // TODO: extend it
-const Direction = enum { left, right };
+pub const Direction = enum { left, right };
 
-pub const WindowManagerPort = struct {
+pub const Port = struct {
     ptr: *anyopaque,
     moveFn: *const fn (ptr: *anyopaque, direction: Direction) void,
 
-    fn move(self: WindowManagerPort, direction: Direction) void {
+    pub fn move(self: Port, direction: Direction) void {
         self.moveFn(self.ptr, direction);
     }
 };
