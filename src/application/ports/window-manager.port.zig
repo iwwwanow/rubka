@@ -3,9 +3,9 @@ pub const Direction = enum { left, right };
 
 pub const Port = struct {
     ptr: *anyopaque,
-    moveFn: *const fn (ptr: *anyopaque, direction: Direction) void,
+    move_fn: *const fn (ptr: *anyopaque, direction: Direction) void,
 
     pub fn move(self: Port, direction: Direction) void {
-        self.moveFn(self.ptr, direction);
+        self.move_fn(self.ptr, direction);
     }
 };
