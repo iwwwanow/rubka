@@ -1,10 +1,13 @@
-infrastructure: {
+presentation: {
   cli: {
     move-window: {
       "left"
       "right"
     }
   }
+}
+
+infrastructure: {
   adapters: {
     sway
   }
@@ -20,8 +23,8 @@ application: {
   }
 }
 
-infrastructure.cli.move-window."left" -> application.use-cases.move-window
-infrastructure.cli.move-window."right" -> application.use-cases.move-window
+presentation.cli.move-window."left" -> application.use-cases.move-window
+presentation.cli.move-window."right" -> application.use-cases.move-window
 
 application.use-cases.move-window -> application.ports.window-manager
 
