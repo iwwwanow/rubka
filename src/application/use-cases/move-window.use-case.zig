@@ -1,9 +1,9 @@
-const window_manager_port = @import("../ports/window-manager.port.zig");
+const port_mod = @import("../ports/window-manager.port.zig");
 
 pub const MoveWindowUseCase = struct {
-    window_manager: window_manager_port.Port,
+    window_manager: port_mod.WindowManagerPort,
 
-    pub fn execute(self: MoveWindowUseCase, direction: window_manager_port.Direction) void {
+    pub fn execute(self: MoveWindowUseCase, direction: port_mod.Direction) void {
         self.window_manager.move(direction);
     }
 };
