@@ -1,4 +1,4 @@
-// TODO: extend it
+// TODO: extend it; move it to shared or domain layer
 pub const Direction = enum { left, right };
 
 pub const WindowManagerPort = struct {
