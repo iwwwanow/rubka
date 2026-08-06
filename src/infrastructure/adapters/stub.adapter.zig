@@ -9,7 +9,7 @@ fn move_fn(ptr: *anyopaque, direction: port_mod.Direction) void {
     _ = self;
 
     const direction_string: [:0]const u8 = @tagName(direction);
-    std.debug.print("{s}\n", .{direction_string});
+    std.debug.print("stub adapter works with direction: {s}\n", .{direction_string});
 }
 
 pub fn wrap(self: *StubWindowManagerAdapter) port_mod.WindowManagerPort {
