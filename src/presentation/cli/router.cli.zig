@@ -8,8 +8,7 @@ const move_window_cli_mod = @import("./move-window.cli.zig");
 pub const RouterCli = struct {
     move_window_cli: move_window_cli_mod.MoveWindowCli,
 
-    pub fn process(self: RouterCli) void {
-        var args = std.process.args();
+    pub fn process(self: RouterCli, args: *std.process.Args.Iterator) void {
         // TODO: why we skip first element?
         _ = args.skip();
 
