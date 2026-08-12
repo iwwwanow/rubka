@@ -19,7 +19,7 @@ const PayloadType = union(enum) {
 pub const FrameError = error{ InvalidMagic, BufferTooShort };
 
 pub fn decodeHeader(buf: []const u8) FrameError!Header {
-    // TODO: length check
+    if (buf.len < constants_mod.header_length) return FrameError.BufferTooShort;
     const is_i3_ipc_header = std.mem.eql(u8, buf[0..6], constants_mod.i3_ipc_magic);
     if (!is_i3_ipc_header) return FrameError.InvalidMagic;
 }

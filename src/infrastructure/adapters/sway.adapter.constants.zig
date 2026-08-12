@@ -1,4 +1,5 @@
 pub const i3_ipc_magic = "i3-ipc";
+pub const header_length = 14;
 
 pub const MessageType = enum(u32) {
     run_command = 0,
