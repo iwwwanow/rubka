@@ -3,6 +3,7 @@ test {
 }
 
 const std = @import("std");
+const builtin = @import("builtin");
 
 const constants_mod = @import("./sway.adapter.constants.zig");
 
@@ -20,6 +21,26 @@ pub const FrameError = error{ InvalidMagic, BufferTooShort };
 
 pub fn decodeHeader(buf: []const u8) FrameError!Header {
     if (buf.len < constants_mod.header_length) return FrameError.BufferTooShort;
-    const is_i3_ipc_header = std.mem.eql(u8, buf[0..6], constants_mod.i3_ipc_magic);
+    const header_buf = buf[0..constants_mod.payload_magic_size];
+    const is_i3_ipc_header = std.mem.eql(u8, header_buf, constants_mod.i3_ipc_magic);
     if (!is_i3_ipc_header) return FrameError.InvalidMagic;
+
+    const endian = builtin.cpu.arch.endian();
+
+    const payload_length_buf = buf[constants_mod.payload_length_offset..][0..constants_mod.payload_length_size];
+    const payload_length = std.mem.readInt(u32, payload_length_buf, endian);
+
+    const payload_raw_type_buf = buf[constants_mod.payload_raw_type_offset..][0..constants_mod.payload_raw_type_size];
+    const payload_raw_type = std.mem.readInt(u32, payload_raw_type_buf, endian);
+
+    // TODO: dont understand it;
+    const is_event = payload_raw_type & 0x80000000 != 0;
+    const masked_type = payload_raw_type & 0x7FFFFFFF;
+
+    const payload_type: PayloadType = if (is_event)
+        PayloadType{ .event = @enumFromInt(masked_type) }
+    else
+        PayloadType{ .message = @enumFromInt(masked_type) };
+
+    return Header{ .payload_length = payload_length, .payload_type = payload_type };
 }
