@@ -7,6 +7,11 @@ const move_window_cli_mod = @import("./presentation/cli/move-window.cli.zig");
 
 const sway_adapter_mod = @import("./infrastructure/adapters/sway.adapter.zig");
 
+// TODO: refactor; mv test imports to root zig
+test {
+    _ = @import("./infrastructure/adapters/sway.adapter.zig");
+}
+
 pub fn main(init: std.process.Init.Minimal) void {
     var adapter_impl: adapter_mod.StubWindowManagerAdapter = .{};
     const port_impl = adapter_mod.wrap(&adapter_impl);
