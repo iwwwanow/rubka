@@ -43,14 +43,12 @@ test "decodeHeader: valid event frame" {
         example_json.len,
         endian,
     );
-
     std.mem.writeInt(
         u32,
         event_frame[constants_mod.payload_raw_type_offset..][0..constants_mod.payload_raw_type_size],
         @intFromEnum(constants_mod.EventType.window) | 0x80000000,
         endian,
     );
-
     @memcpy(event_frame[constants_mod.header_length..], example_json);
 
     const header = try adapter_mod.decodeHeader(&event_frame);
