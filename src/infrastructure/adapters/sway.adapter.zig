@@ -7,7 +7,7 @@ const builtin = @import("builtin");
 
 const constants_mod = @import("./sway.adapter.constants.zig");
 
-const Header = struct {
+pub const Header = struct {
     payload_length: u32,
     payload_type: PayloadType,
 };
