@@ -1,9 +1,12 @@
 pub const i3_ipc_magic = "i3-ipc";
 pub const payload_magic_size = 6;
+
 pub const payload_length_offset = payload_magic_size;
 pub const payload_length_size = 4;
+
 pub const payload_raw_type_offset = payload_magic_size + payload_length_size;
 pub const payload_raw_type_size = 4;
+
 pub const header_length = payload_magic_size + payload_length_size + payload_raw_type_size;
 
 pub const MessageType = enum(u32) {
