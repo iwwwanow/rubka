@@ -70,13 +70,17 @@ test "decodeHeader: invalid magic" {
 test "encodeHeader: valid message frame" {
     const header: adapter_mod.Header = .{ .payload_length = example_json.len, .payload_type = .{ .message = constants_mod.MessageType.get_version } };
     const message_frame: [constants_mod.header_length]u8 = adapter_mod.encodeHeader(header);
-    try testing.expectEqual(constants_mod.MessageType.get_version, header.payload_type.message);
+
+    try testing.expectEqualSlices(u8, constants_mod.i3_ipc_magic, message_frame[0..constants_mod.payload_magic_size]);
+    try testing.expectEqualSlices(u8, std.mem.asBytes(&header.payload_length), message_frame[constants_mod.payload_length_offset..][0..constants_mod.payload_length_size]);
+    const decoded_raw_type = std.mem.readInt(u32, message_frame[constants_mod.payload_raw_type_offset..][0..constants_mod.payload_raw_type_size], endian);
+    try testing.expectEqual(@intFromEnum(header.payload_type.message), decoded_raw_type);
 }
 
-test "encodeHeader: valid event frame" {
-    const header: adapter_mod.Header = .{ .payload_length = example_json.len, .payload_type = .{ .event = constants_mod.EventType.output } };
-    const event_frame: [constants_mod.header_length]u8 = adapter_mod.encodeHeader(header);
-}
+// test "encodeHeader: valid event frame" {
+//     const header: adapter_mod.Header = .{ .payload_length = example_json.len, .payload_type = .{ .event = constants_mod.EventType.output } };
+//     const event_frame: [constants_mod.header_length]u8 = adapter_mod.encodeHeader(header);
+// }
 
 // 3. payload_length — граничные значения. 0 (пустой payload) и std.math.maxInt(u32) — проверить, что writeInt не режет/не переполняет на краях диапазона. Не то чтобы writeInt может здесь сломаться, но это дешёвая проверка, которая фиксирует контракт.
 
