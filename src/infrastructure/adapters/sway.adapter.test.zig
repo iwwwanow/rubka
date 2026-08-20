@@ -89,6 +89,20 @@ test "encodeHeader: valid event frame" {
 
 // 3. payload_length — граничные значения. 0 (пустой payload) и std.math.maxInt(u32) — проверить, что writeInt не режет/не переполняет на краях диапазона. Не то чтобы writeInt может здесь сломаться, но это дешёвая проверка, которая фиксирует контракт.
 
+// INFO: regression guard
+test "encodeHeader: payload_length zero" {
+    const header: adapter_mod.Header = .{ .payload_length = 0, .payload_type = .{ .event = constants_mod.EventType.window } };
+    const frame: [constants_mod.header_length]u8 = adapter_mod.encodeHeader(header);
+    try testing.expectEqualSlices(u8, std.mem.asBytes(&header.payload_length), frame[constants_mod.payload_length_offset..][0..constants_mod.payload_length_size]);
+}
+
+// INFO: regression guard
+test "encodeHeader: payload_length max u32" {
+    const header: adapter_mod.Header = .{ .payload_length = std.math.maxInt(u32), .payload_type = .{ .event = constants_mod.EventType.window } };
+    const frame: [constants_mod.header_length]u8 = adapter_mod.encodeHeader(header);
+    try testing.expectEqualSlices(u8, std.mem.asBytes(&header.payload_length), frame[constants_mod.payload_length_offset..][0..constants_mod.payload_length_size]);
+}
+
 // 4. Non-exhaustive enum значения. MessageType и EventType объявлены с _ — то есть допускают @enumFromInt на значение, которого нет в списке (например, будущий тип, который sway добавит, а константы ещё не обновили). Стоит проверить, что encodeHeader со значением вроде @enumFromInt(9999) как MessageType кодирует именно 9999, а не падает/обрезает — это прямое следствие того, что enum non-exhaustive, и код на это рассчитывает.
 
 // 5. Round-trip — с оговоркой. Round-trip (decodeHeader(&encodeHeader(header))) хорош, но у него есть слепое пятно: если один и тот же баг симметрично сидит в encode и decode (например, обе функции перепутали endian одинаково), round-trip его не поймает — он проверяет только взаимную согласованность, а не соответствие реальному протокольному формату. Поэтому round-trip дополняет, но не заменяет тесты с явно прописанными ожидаемыми байтами (как в п.1–2) — эти последние привязаны к спеке независимо от того, что думает decode.
