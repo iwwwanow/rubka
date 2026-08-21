@@ -87,8 +87,6 @@ test "encodeHeader: valid event frame" {
     try testing.expectEqual(@intFromEnum(header.payload_type.event) | 0x80000000, decoded_raw_type);
 }
 
-// 3. payload_length — граничные значения. 0 (пустой payload) и std.math.maxInt(u32) — проверить, что writeInt не режет/не переполняет на краях диапазона. Не то чтобы writeInt может здесь сломаться, но это дешёвая проверка, которая фиксирует контракт.
-
 // INFO: regression guard
 test "encodeHeader: payload_length zero" {
     const header: adapter_mod.Header = .{ .payload_length = 0, .payload_type = .{ .event = constants_mod.EventType.window } };
@@ -101,6 +99,14 @@ test "encodeHeader: payload_length max u32" {
     const header: adapter_mod.Header = .{ .payload_length = std.math.maxInt(u32), .payload_type = .{ .event = constants_mod.EventType.window } };
     const frame: [constants_mod.header_length]u8 = adapter_mod.encodeHeader(header);
     try testing.expectEqualSlices(u8, std.mem.asBytes(&header.payload_length), frame[constants_mod.payload_length_offset..][0..constants_mod.payload_length_size]);
+}
+
+test "encodeHeader: non-exhaustive enum value" {
+    const non_exhaustive_value: u32 = 9999;
+    const header: adapter_mod.Header = .{ .payload_length = example_json.len, .payload_type = .{ .message = @enumFromInt(non_exhaustive_value) } };
+    const frame: [constants_mod.header_length]u8 = adapter_mod.encodeHeader(header);
+    const decoded_raw_type = std.mem.readInt(u32, frame[constants_mod.payload_raw_type_offset..][0..constants_mod.payload_raw_type_size], endian);
+    try testing.expectEqual(non_exhaustive_value, decoded_raw_type);
 }
 
 // 4. Non-exhaustive enum значения. MessageType и EventType объявлены с _ — то есть допускают @enumFromInt на значение, которого нет в списке (например, будущий тип, который sway добавит, а константы ещё не обновили). Стоит проверить, что encodeHeader со значением вроде @enumFromInt(9999) как MessageType кодирует именно 9999, а не падает/обрезает — это прямое следствие того, что enum non-exhaustive, и код на это рассчитывает.
