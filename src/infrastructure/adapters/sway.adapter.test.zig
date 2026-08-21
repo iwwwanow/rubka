@@ -109,8 +109,9 @@ test "encodeHeader: non-exhaustive enum value" {
     try testing.expectEqual(non_exhaustive_value, decoded_raw_type);
 }
 
-// 4. Non-exhaustive enum значения. MessageType и EventType объявлены с _ — то есть допускают @enumFromInt на значение, которого нет в списке (например, будущий тип, который sway добавит, а константы ещё не обновили). Стоит проверить, что encodeHeader со значением вроде @enumFromInt(9999) как MessageType кодирует именно 9999, а не падает/обрезает — это прямое следствие того, что enum non-exhaustive, и код на это рассчитывает.
-
-// 5. Round-trip — с оговоркой. Round-trip (decodeHeader(&encodeHeader(header))) хорош, но у него есть слепое пятно: если один и тот же баг симметрично сидит в encode и decode (например, обе функции перепутали endian одинаково), round-trip его не поймает — он проверяет только взаимную согласованность, а не соответствие реальному протокольному формату. Поэтому round-trip дополняет, но не заменяет тесты с явно прописанными ожидаемыми байтами (как в п.1–2) — эти последние привязаны к спеке независимо от того, что думает decode.
-
-// Из необязательного: отдельный тест, что для event-варианта с уже "занятым" 31-м битом в исходном enum-значении (гипотетически, если бы кто-то руками сделал @enumFromInt с таким значением) OR не портит данные — но это скорее теоретический край, реальные EventType все < 32, можно пропустить.
+test "round trip" {
+    const header: adapter_mod.Header = .{ .payload_length = 0, .payload_type = .{ .event = constants_mod.EventType.window } };
+    const encoded_header_frame: [constants_mod.header_length]u8 = adapter_mod.encodeHeader(header);
+    const decoded_header = try adapter_mod.decodeHeader(&encoded_header_frame);
+    try testing.expectEqual(header, decoded_header);
+}
