@@ -67,3 +67,12 @@ pub fn encodeHeader(header: Header) [constants_mod.header_length]u8 {
 
     return header_buf;
 }
+
+pub fn decodeReply(buf: []const u8) {
+// if header.payload_type decodeRunCommandReply()
+// return error.UnknownCommand
+}
+
+pub fn decodeRunCommandReply(buf: []const u8) {
+
+}
