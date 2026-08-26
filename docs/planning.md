@@ -7,7 +7,7 @@
 - [ ] payload сериализация в `sway.adapter.zig` (header уже готов —
       `encodeHeader`/`decodeHeader`, `a5a90fc`/`1f61539`). Скоуп — только под
       `move-window`, без генерализации на весь i3-ipc протокол заранее
-      (обоснование — `docs/dairy/2026-08-23_json-payload-scope-i-allocator-diskussiya.md`).
+      (обоснование — `docs/diary/2026-08-23_json-payload-scope-i-allocator-diskussiya.md`).
       Развилка на старт сессии: (а) минимальный `encode` под `run_command`
       без `std.json` (тело запроса — сырая строка) — самый короткий путь до
       рабочего end-to-end `move-window`; (б) сразу `std.json` под

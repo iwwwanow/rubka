@@ -4,7 +4,7 @@
   сначала конкретный адаптер (`StubWindowManagerAdapter`), затем оборачивание
   его в `Port` и передача в `MoveWindowUseCase`, затем сам use-case передаётся
   в `MoveWindowCli`. Это ровно то, что было записано во вчерашнем "На завтра"
-  (`docs/dairy/2026-08-04_stub-adapter-vtable.md`).
+  (`docs/diary/2026-08-04_stub-adapter-vtable.md`).
 - Разобрали первый практический шаг — импорт `StubWindowManagerAdapter` в
   `main.zig`. Выбрали относительный `@import` (а не реэкспорт через
   `root.zig`) как временное решение. Модули/баррель-файлы на слой (по
