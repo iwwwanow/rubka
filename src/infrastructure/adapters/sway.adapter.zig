@@ -5,6 +5,7 @@ test {
 const std = @import("std");
 const builtin = @import("builtin");
 
+const port_mod = @import("../../application/ports/window-manager.port.zig");
 const constants_mod = @import("./sway.adapter.constants.zig");
 
 pub const Header = struct {
@@ -20,6 +21,19 @@ const PayloadType = union(enum) {
 pub const FrameError = error{ InvalidMagic, BufferTooShort };
 
 const endian = builtin.cpu.arch.endian();
+
+pub const SwayWindowManagerAdapter = struct {};
+
+fn move_fn(ptr: *anyopaque, direction: port_mod.Direction) void {
+    const self: *SwayWindowManagerAdapter = @ptrCast(ptr);
+    _ = self;
+
+    // commandString() -> moveCommandString()
+}
+
+pub fn wrap(self: *SwayWindowManagerAdapter) port_mod.WindowManagerPort {
+    return .{ .ptr = self, .move_fn = move_fn };
+}
 
 pub fn decodeHeader(buf: []const u8) FrameError!Header {
     if (buf.len < constants_mod.header_length) return FrameError.BufferTooShort;
@@ -68,11 +82,11 @@ pub fn encodeHeader(header: Header) [constants_mod.header_length]u8 {
     return header_buf;
 }
 
-pub fn decodeReply(buf: []const u8) {
+// pub fn decodeReply(buf: []const u8) {
 // if header.payload_type decodeRunCommandReply()
 // return error.UnknownCommand
-}
+// }
 
-pub fn decodeRunCommandReply(buf: []const u8) {
+// pub fn decodeRunCommandReply(buf: []const u8) {
 
-}
+// }
