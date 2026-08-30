@@ -8,85 +8,35 @@ const builtin = @import("builtin");
 const port_mod = @import("../../application/ports/window-manager.port.zig");
 const constants_mod = @import("./sway.adapter.constants.zig");
 
-pub const Header = struct {
-    payload_length: u32,
-    payload_type: PayloadType,
-};
-
-const PayloadType = union(enum) {
-    message: constants_mod.MessageType,
-    event: constants_mod.EventType,
-};
-
-pub const FrameError = error{ InvalidMagic, BufferTooShort };
-
-const endian = builtin.cpu.arch.endian();
-
 pub const SwayWindowManagerAdapter = struct {};
 
 fn move_fn(ptr: *anyopaque, direction: port_mod.Direction) void {
     const self: *SwayWindowManagerAdapter = @ptrCast(ptr);
     _ = self;
 
-    // commandString() -> moveCommandString()
+    // command_string = moveCommandString(direction)              // commands.zig
+    // result = runCommand(self.stream, command_string)           // координатор, sway.adapter.zig
+    // return result   // commandString() -> moveCommandString()
 }
 
 pub fn wrap(self: *SwayWindowManagerAdapter) port_mod.WindowManagerPort {
     return .{ .ptr = self, .move_fn = move_fn };
 }
 
-pub fn decodeHeader(buf: []const u8) FrameError!Header {
-    if (buf.len < constants_mod.header_length) return FrameError.BufferTooShort;
-    const header_buf = buf[0..constants_mod.payload_magic_size];
-    const is_i3_ipc_header = std.mem.eql(u8, header_buf, constants_mod.i3_ipc_magic);
-    if (!is_i3_ipc_header) return FrameError.InvalidMagic;
-
-    const payload_length_buf = buf[constants_mod.payload_length_offset..][0..constants_mod.payload_length_size];
-    const payload_length = std.mem.readInt(u32, payload_length_buf, endian);
-
-    const payload_raw_type_buf = buf[constants_mod.payload_raw_type_offset..][0..constants_mod.payload_raw_type_size];
-    const payload_raw_type = std.mem.readInt(u32, payload_raw_type_buf, endian);
-
-    // TODO: dont understand it;
-    const is_event = payload_raw_type & 0x80000000 != 0;
-    const masked_type = payload_raw_type & 0x7FFFFFFF;
-
-    const payload_type: PayloadType = if (is_event)
-        PayloadType{ .event = @enumFromInt(masked_type) }
-    else
-        PayloadType{ .message = @enumFromInt(masked_type) };
-
-    return Header{ .payload_length = payload_length, .payload_type = payload_type };
-}
-
-pub fn encodeHeader(header: Header) [constants_mod.header_length]u8 {
-    var header_buf: [constants_mod.header_length]u8 = undefined;
-    @memcpy(header_buf[0..constants_mod.payload_magic_size], constants_mod.i3_ipc_magic);
-    std.mem.writeInt(
-        u32,
-        header_buf[constants_mod.payload_length_offset..][0..constants_mod.payload_length_size],
-        header.payload_length,
-        endian,
-    );
-    const payload_raw_type: u32 = switch (header.payload_type) {
-        .message => |m| @intFromEnum(m),
-        .event => |e| @intFromEnum(e) | 0x80000000,
-    };
-    std.mem.writeInt(
-        u32,
-        header_buf[constants_mod.payload_raw_type_offset..][0..constants_mod.payload_raw_type_size],
-        payload_raw_type,
-        endian,
-    );
-
-    return header_buf;
-}
-
-// pub fn decodeReply(buf: []const u8) {
-// if header.payload_type decodeRunCommandReply()
-// return error.UnknownCommand
-// }
-
-// pub fn decodeRunCommandReply(buf: []const u8) {
-
-// }
+// runCommand(stream, command_string):
+//     header_out = encodeHeader({                                // header.zig
+//         payload_length: len(command_string),
+//         payload_type: message.run_command
+//     })
+//
+//     socket.write(stream, header_out)                           // socket.zig — сырые байты
+//     socket.write(stream, command_string)                       // socket.zig — сырые байты
+//
+//     header_bytes = socket.readExact(stream, header_length)     // socket.zig
+//     header_in = decodeHeader(header_bytes)                     // header.zig
+//
+//     body_bytes = socket.readExact(stream, header_in.payload_length)  // socket.zig
+//
+//     result = decodeReply(header_in, body_bytes)                // commands.zig
+//   internally → decodeRunCommandReply(body_bytes)
+// return result
