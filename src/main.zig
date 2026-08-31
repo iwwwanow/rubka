@@ -12,7 +12,7 @@ test {
     _ = @import("./infrastructure/adapters/sway.adapter.zig");
 }
 
-pub fn main(init: std.process.Init.Minimal) void {
+pub fn main(init: std.process.Init) void {
     var adapter_impl: adapter_mod.StubWindowManagerAdapter = .{};
     const port_impl = adapter_mod.wrap(&adapter_impl);
     const move_window_use_case_impl: use_case_mod.MoveWindowUseCase = .{ .window_manager = port_impl };
