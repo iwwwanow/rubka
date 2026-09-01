@@ -26,28 +26,33 @@ pub fn wrap(self: *SwayWindowManagerAdapter) port_mod.WindowManagerPort {
     return .{ .ptr = self, .move_fn = move_fn };
 }
 
-// TODO: 
+// TODO:
 // const SwaySocket = struct {
 //     io: std.Io,
 //     stream: std.Io.net.Stream,
 // };
 
-fn runCommand(io: std.Io, stream: std.Io.net.Stream, command_payload: []const u8) {
-    const header_out = header_mod.encodeHeader({
-        payload_length: len(command_string),
-        payload_type: .{ .message = constants_mod.Message.run_command}
-    })
+fn runCommand(io: std.Io, stream: std.Io.net.Stream, command_payload: []const u8) void {
+    const header_out = header_mod.encodeHeader(.{
+        .payload_length = command_payload.len,
+        .payload_type = .{ .message = constants_mod.Message.run_command },
+    });
 
     socket_mod.write(stream, header_out)
-    // INFO: why we write command string?
     socket_mod.write(stream, command_payload)
 
-// header_bytes = socket.readExact(stream, header_length)
-// header_in = decodeHeader(header_bytes)
-// body_bytes = socket.readExact(stream, header_in.payload_length)
+//     1. Получить Allocator (уже есть, передан параметром — не создаёшь заново).
+// 2. Выделить память нужного размера через него: allocator.alloc(u8, n) → получаешь []u8 ровно на n байт (это может упасть — error.OutOfMemory, нужен try).
+    // Идиоматичный Zig-паттерн для шага 5 — не звать free руками "в конце", а сразу после alloc поставить defer allocator.free(...): тогда освобождение гарантированно случится при выходе из функции, даже если где-то между шагами 3 и 4 будет ранний return по ошибке.
+// 3. Заполнить эту память прочитанными байтами.
+// 4. Использовать данные.
+// 5. Освободить именно эту выделенную память — allocator.free(...), а не "почистить аллокатор" целиком (сам Allocator обычно живёт значительно дольше одного вызова — это конкретные выделения освобождаются по одному, каждое когда с ним закончили).
 
-// result = decodeReply(header_in, body_bytes)
-// internally → decodeRunCommandReply(body_bytes)
-// return result
+    // header_bytes = socket.readExact(stream, header_length)
+    // header_in = decodeHeader(header_bytes)
+    // body_bytes = socket.readExact(stream, header_in.payload_length)
+
+    // result = decodeReply(header_in, body_bytes)
+    // internally → decodeRunCommandReply(body_bytes)
+    // return result
 }
-
