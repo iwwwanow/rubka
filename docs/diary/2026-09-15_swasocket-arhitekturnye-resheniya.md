@@ -49,26 +49,101 @@
 - `sway.adapter.zig`: `constants_mod.Message.run_command` → `constants_mod.MessageType.run_command`
   — опечатка с 08-31 исправлена.
 
+## Продолжение той же сессии: буфер, самоссылка, `wrap`, первый код
+
+### Размер internal-буфера — 4096 на чтение и на запись
+
+Не привязан к протоколу (заголовок sway-ipc фиксирован — 14 байт, `constants_mod.header_length`,
+но это отдельная вещь). `Io.Reader`/`Io.Writer` internal-буфер нужен только для сглаживания мелких
+чтений/записей — `readSliceShort` (std `Io/Reader.zig:675`) при нехватке данных в буфере читает
+остаток напрямую в целевой `buffer`, минуя internal-буфер, так что размер сообщения (`get_tree`
+может вернуть мегабайты JSON) internal-буфер вмещать не обязан. 4096 — разумный дефолт (страница
+памяти), не более того.
+
+### Найдена и закрыта ловушка: самоссылающаяся структура через буфер
+
+`Stream.Reader.init(stream, io, buffer)` не копирует `buffer`, а кладёт его как слайс
+(`.interface.buffer = buffer`) — то есть *ссылку* на память. Если этот `buffer` — поле того же
+`SwaySocket`, где лежит и сам `reader`, получаем самоссылку: как только `SwaySocket` копируется по
+значению (например, `self.socket = try SwaySocket.connect(...)` — свободная функция возвращает
+структуру, вызывающий код копирует её в `self.socket`), байты `read_buf`/`write_buf` переезжают на
+новый адрес, а `reader.interface.buffer` внутри продолжает указывать на старый (уже не существующий)
+адрес временной переменной — dangling pointer, тихий баг при первом чтении.
+
+**Решение:** `connect` — не свободная функция "верни готовый `SwaySocket`", а метод, мутирующий уже
+стоящий на месте `*SwaySocket` (`try self.socket.connect(io, path)`, не
+`self.socket = try SwaySocket.connect(...)`). Тогда `&self.read_buf` берётся у структуры, которая уже
+лежит по финальному адресу и больше никуда не переедет. Это не стилистический выбор — обязательное
+требование из-за самоссылки. Заодно закрыт вопрос "`init` или `connect`, один шаг или два" — шаг один,
+имя `connect` (не `init`, чтобы явно читалось "тут syscall, может упасть").
+
+**Открытый вопрос (не решён, перенести в следующую сессию):** поля `reader`/`writer` до вызова
+`connect()` — оставить `undefined` (дёшево, но "не подключено" неотличимо от "подключено, но мусор")
+или сделать `?Stream.Reader = null` / `?Stream.Writer = null` (явное состояние "нет соединения",
+`readInto`/`write` смогут вернуть `error.NotConnected` вместо чтения мусора, но добавляет
+`if (self.reader) |*r|` в каждый метод). Пользователь спрошен, ответа в этой сессии не было.
+
+### Откуда взялся `wrap`
+
+Не изобретён в этой сессии — уже существовавший паттерн из `stub.adapter.zig` (`wrap(self: *T)
+port_mod.WindowManagerPort`, ручной vtable через `ptr: *anyopaque` + `move_fn`, так как в Zig нет
+трейтов/интерфейсов). `main.zig` уже вызывает его для стаба. В `sway.adapter.zig` `wrap` был и раньше,
+просто без `io`-параметра и без fallible — это и есть та правка, которую предстояло сделать.
+
+## Первый код по этим решениям — закоммичен, но не собирается
+
+Коммит `dc13234` ("feat(infra): sway socket WIP") — первая реализация `SwaySocket` +
+правка `wrap()`. Прогнан ревью (без правок, только диагностика — не в духе роли Claude в этом
+проекте), подтверждённые находки:
+
+1. `connect(self: SwaySocket, ...)` — `self` по значению, не `*SwaySocket`. Ровно та самоссылка,
+   что разобрана выше: `self.reader = ...` внутри мутирует копию, изменения теряются при возврате.
+2. `self.reader.init(stream, io, read_buf)` — не тот вызов. `Stream.Reader.init` — не метод
+   существующего `reader`, а конструктор (`init(stream, io, buffer) Reader`), возвращающий новое
+   значение. Нужно `self.reader = std.Io.net.Stream.Reader.init(stream, io, &self.read_buf);`
+   (присваивание).
+3. `read_buf`/`write_buf` использованы как голые идентификаторы вместо `self.read_buf`/`self.write_buf`.
+4. `std.Io.net.UnixAddress.init(path)` не даёт `Stream` — он только строит адрес (сам fallible:
+   `InitError!UnixAddress`); коннект — отдельный вызов `.connect(io)` на результате
+   (`ConnectError!Stream`). Оба шага сейчас слиты в одну строку без единого `try`.
+5. `connect` объявлен как `void`, хотя внутри fallible-операции и на месте вызова уже стоит
+   `try self.socket.connect(io)` — нужен `!void`.
+6. `connect` в определении просит `(self, io, path)`, вызывается из `wrap` только с `(io)` —
+   путь до сокета потерян.
+7. Проверено компилятором на изолированном примере: `pub fn foo() void {};` — синтаксическая ошибка
+   ("expected type expression, found ';'"). Лишняя `;` после тела метода стоит у `connect`,
+   `readInto` и `write` — все три не соберутся как есть.
+8. Старые свободные функции `write(io, stream, data)`/`readInto(io, stream, buffer)` внизу файла
+   всё ещё на месте, не удалены после появления методов на структуре.
+9. `sway.adapter.zig`: `socket: socket_mod.SwaySocket = .{}` требует дефолта у каждого поля
+   `SwaySocket` (проверено на изолированном примере — без дефолта хотя бы у одного поля компилятор
+   падает с `missing struct field`). У `reader`/`writer` дефолта нет (только `read_buf`/`write_buf`
+   его получили) — не соберётся, пока не добавить дефолт (см. открытый вопрос про `undefined` vs
+   `?T = null` выше — это один и тот же вопрос).
+10. `try self.socket.connect(io)` в `wrap` — тот же пропущенный `path`, что и п.6.
+
+Ничего из этого не исправлено — фиксация находок, правки за пользователем.
+
 ## Где остановились технически
 
-Обе структуры (`SwaySocket` как метод-хост, `self.socket` в адаптере) — только решения на
-словах, в коде ещё не появились. `runCommand` — всё ещё тело смешано с комментариями-псевдокодом
-из чата (см. 09-01), не переписано под сегодняшние решения.
+`SwaySocket` и `self.socket` в адаптере — уже в коде (коммит `dc13234`), но не компилируются
+(10 находок выше). `runCommand` — всё ещё тело смешано с комментариями-псевдокодом из чата
+(см. 09-01), не переписано.
 
 ## Следующая сессия
 
-Начать с:
-1. `socket.zig` — доделать `readInto`: тип возврата `![]const u8` → `!void` (пишем в переданный
-   `buffer`, ничего не возвращаем). Переопределить `write`/`readInto` как методы на `SwaySocket`
-   (`self: SwaySocket`), убрать `io`/`stream` как отдельные параметры каждой функции.
-2. `sway.adapter.zig` — `wrap()`: создать `SwaySocket` (`UnixAddress.init(path).connect(io)`),
-   сохранить в `self.socket` (новое поле `SwayWindowManagerAdapter`), сделать `wrap()` fallible.
-3. `runCommand` — переписать по актуальному плану реальным кодом (не комментариями):
-   - вызовы `socket_mod.write(...)` → `self.socket.write(...)` (по итогам п.1);
+Начать с исправления находок 1-10 по коммиту `dc13234` (все — в `sway.adapter.socket.zig` и
+`sway.adapter.zig`), заодно закрыв открытый вопрос `undefined` vs `?T = null` для `reader`/`writer`.
+После того как `SwaySocket.connect`/`readInto`/`write` реально компилируются:
+
+1. `runCommand` — переписать по актуальному плану реальным кодом (не комментариями):
+   - вызовы `socket_mod.write(...)` → `self.socket.write(...)`;
    - `body_bytes = allocator.alloc(u8, header_in.payload_length)` + `defer allocator.free(...)`
      прямо в `runCommand`, дальше `self.socket.readInto(body_bytes)`;
    - реальный error union в сигнатуре вместо `void`.
-4. `main.zig` (composition root) — передать `io` в адаптер/`wrap()`, обернуть вызов в `try`.
-5. (низкий приоритет, независимо от 1-4) `sway.adapter.test.zig` — переключить импорт
+2. `main.zig` (composition root) — получить `std.Io` (в zig 0.16 — `std.Io.Threaded.init(allocator,
+   .{})` + `.io()`), передать в адаптер/`wrap()`, обернуть вызов в `try`, переключиться со
+   `stub.adapter` на `sway_adapter_mod`.
+3. (низкий приоритет, независимо от 1-2) `sway.adapter.test.zig` — переключить импорт
    header-символов (`decodeHeader`/`encodeHeader`/`Header`/`FrameError`) на `header_mod`, чтобы
    `zig build test` перестал падать на импортах.
