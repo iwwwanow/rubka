@@ -6,25 +6,26 @@ const std = @import("std");
 // readExact(stream, n) -> bytes
 
 pub const SwaySocket = struct {
-    reader: std.Io.net.Stream.Reader,
-    writer: std.Io.net.Stream.Writer,
+    reader: std.Io.net.Stream.Reader = undefined,
+    writer: std.Io.net.Stream.Writer = undefined,
     read_buf: [4096]u8 = undefined,
     write_buf: [4096]u8 = undefined,
 
-    pub fn connect(self: SwaySocket, io: std.Io, path: []const u8) void {
-        const stream = std.Io.net.UnixAddress.init(path);
+    pub fn connect(self: SwaySocket, io: std.Io, path: []const u8) !void {
+        const stream_path = std.Io.net.UnixAddress.init(path);
+        const stream = stream_path.connect(io);
 
-        self.reader.init(stream, io, read_buf);
-        self.writer.init(stream, io, write_buf);
-    };
+        self.reader = std.Io.net.Stream.Reader.init(stream, io, &self.read_buf);
+        self.writer = std.Io.net.Stream.Writer.init(stream, io, &self.write_buf);
+    }
 
     pub fn readInto() {
 
-    };
+    }
 
     pub fn write() {
 
-    };
+    }
 
     // TODO: pub fn close() {};
 };
