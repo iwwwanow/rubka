@@ -11,7 +11,9 @@ const commands_mod = @import("./sway.adapter.commands.zig");
 const header_mod = @import("./sway.adapter.header.zig");
 const socket_mod = @import("./sway.adapter.socket.zig");
 
-pub const SwayWindowManagerAdapter = struct {};
+pub const SwayWindowManagerAdapter = struct {
+    socket: socket_mod.SwaySocket = .{}
+};
 
 fn move_fn(ptr: *anyopaque, direction: port_mod.Direction) void {
     const self: *SwayWindowManagerAdapter = @ptrCast(ptr);
@@ -22,7 +24,8 @@ fn move_fn(ptr: *anyopaque, direction: port_mod.Direction) void {
     // return result
 }
 
-pub fn wrap(self: *SwayWindowManagerAdapter) port_mod.WindowManagerPort {
+pub fn wrap(self: *SwayWindowManagerAdapter, io: std.Io) !port_mod.WindowManagerPort {
+    try self.socket.connect(io);
     return .{ .ptr = self, .move_fn = move_fn };
 }
 
