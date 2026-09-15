@@ -35,7 +35,7 @@ pub fn wrap(self: *SwayWindowManagerAdapter) port_mod.WindowManagerPort {
 fn runCommand(io: std.Io, stream: std.Io.net.Stream, command_payload: []const u8) void {
     const header_out = header_mod.encodeHeader(.{
         .payload_length = command_payload.len,
-        .payload_type = .{ .message = constants_mod.Message.run_command },
+        .payload_type = .{ .message = constants_mod.MessageType.run_command },
     });
 
     socket_mod.write(stream, header_out)
