@@ -22,4 +22,10 @@ pub fn main(init: std.process.Init) void {
     var args: std.process.Args.Iterator = init.args.iterate();
 
     router_cli.process(&args);
+
+    // TODO: env
+    // адаптер сам должен вытаскивать переменную по имени. main не должен знать деталей реализации
+    // Откуда брать path
+    // - Переменная SWAYSOCK. Её выставляет сам sway при старте, и она не системная. Sway кладёт её в окружение своих дочерних процессов, дальше она наследуется по цепочке: sway → терминал → шелл → твоя программа. Из-под sway она есть. Из tty, по ssh или из cron её не будет: там нет sway-родителя. На этот случай у sway есть sway --get-socketpath, но это уже запасной вариант, не для первой версии.
+    // - Да, из std.process.Init. Поле environ_map: *Environ.Map (/usr/lib/zig/std/process.zig:44). Метод получения значения найди сам по способу из раздела 3: тип Environ.Map, файл /usr/lib/zig/std/process/Environ.zig, ищи pub fn get. Скорее всего он вернёт optional (?[]const u8): переменной может не быть, и этот случай надо обработать. Вспомни orelse из сессии 08-05, например orelse return error.<свой_тег>.
 }
