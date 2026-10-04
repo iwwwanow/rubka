@@ -1,3 +1,5 @@
+pub const sway_socket_env_var = "SWAYSOCK";
+
 pub const i3_ipc_magic = "i3-ipc";
 pub const payload_magic_size = 6;
 
