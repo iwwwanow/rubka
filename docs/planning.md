@@ -4,12 +4,13 @@
       label/комментарий. Проверено 2026-08-24, расхождений с текущим кодом
       (`cli/move-window.cli.zig` → use-case → port) нет.
 
-- [ ] payload сериализация в `sway.adapter.zig` (header уже готов —
-      `encodeHeader`/`decodeHeader`, `a5a90fc`/`1f61539`). Скоуп — только под
-      `move-window`, без генерализации на весь i3-ipc протокол заранее
-      (обоснование — `docs/diary/2026-08-23_json-payload-scope-i-allocator-diskussiya.md`).
-      Развилка на старт сессии: (а) минимальный `encode` под `run_command`
-      без `std.json` (тело запроса — сырая строка) — самый короткий путь до
-      рабочего end-to-end `move-window`; (б) сразу `std.json` под
-      `subscribe`/ответ `run_command`, если важна надёжность (success/error)
-      раньше, чем голый happy path.
+- [x] payload сериализация в `sway.adapter.zig` — выбран вариант (а): тело
+      `run_command` — сырая строка (`commands.zig`), без `std.json`. Скоуп —
+      только под `move-window`. 2026-10-04: `zig build run -- left` под живым
+      sway двигает окно — первый рабочий end-to-end. Подробности —
+      `docs/diary/2026-10-04_sway-adapter-end-to-end-move-window.md`.
+
+- [ ] чтение ответа sway в `runCommand`: заголовок (14 байт, `decodeHeader`,
+      проверка `payload_type`) → аллокатор (`init.gpa` в адаптер) → тело →
+      сначала лог как есть, потом `std.json` (`decodeReply`, `success: false`
+      → ошибка). План по шагам — в дневнике 2026-10-04.
